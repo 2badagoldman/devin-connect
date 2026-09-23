@@ -1,0 +1,3 @@
+# Keep local build output out of the image build context.
+target/
+.git/

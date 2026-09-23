@@ -1,0 +1,24 @@
+# The customer-deployed gateway and the tunnel wire protocol it speaks to the
+# Devin-side edge. The published Cargo.lock / SBOM describe this graph.
+[workspace]
+resolver = "3"
+members = ["common", "gateway", "tunnel"]
+
+[workspace.dependencies]
+argh = "0.1.13"
+color-eyre = "0.6.4"
+futures = { version = "0.3.31", default-features = false, features = ["std"] }
+httparse = "1.10.1"
+humantime-serde = "1.1.1"
+# ring (not aws-lc-rs) keeps the TLS build free of cmake/perl toolchain deps.
+rustls = { version = "0.23.35", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.145"
+serde_yaml = "0.9.34"
+tokio = { version = "1.45.0", features = ["rt-multi-thread", "net", "macros"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+tokio-util = { version = "0.7.15", features = ["compat"] }
+tracing = "0.1.41"
+tracing-error = "0.2.1"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

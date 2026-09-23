@@ -1,0 +1,30 @@
+[package]
+name = "gateway"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+argh = { workspace = true }
+cidr = { version = "0.3.1", features = ["serde"] }
+color-eyre = { workspace = true }
+common = { path = "../common" }
+fastrand = "2.3.0"
+hickory-resolver = "0.26.1"
+httparse = { workspace = true }
+humantime-serde = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = "2.2.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "sync", "time", "fs", "signal"] }
+tokio-rustls = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tunnel = { path = "../tunnel" }
+webpki-roots = "1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "test-util"] }
