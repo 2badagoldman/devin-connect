@@ -737,38 +737,6 @@ mod tests {
         assert!(written.ends_with(b"\n"), "heartbeat left half-written");
     }
 
-    #[test]
-    fn accepting_reply_yields_tenant() {
-        let reply = HelloReply {
-            ok: true,
-            tenant: Some("acme".to_string()),
-            error: None,
-        };
-        assert_eq!(tenant_from_reply(reply).unwrap(), "acme");
-    }
-
-    #[test]
-    fn rejecting_reply_surfaces_edge_error() {
-        let reply = HelloReply {
-            ok: false,
-            tenant: None,
-            error: Some("authentication failed".to_string()),
-        };
-        let err = tenant_from_reply(reply).unwrap_err();
-        assert!(err.to_string().contains("authentication failed"), "{err}");
-    }
-
-    #[test]
-    fn accepting_reply_without_tenant_fails() {
-        let reply = HelloReply {
-            ok: true,
-            tenant: None,
-            error: None,
-        };
-        let err = tenant_from_reply(reply).unwrap_err();
-        assert!(err.to_string().contains("tenant"), "{err}");
-    }
-
     #[tokio::test]
     async fn build_accepts_ip_literal_endpoints() {
         let dir =

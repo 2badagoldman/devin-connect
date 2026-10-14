@@ -3,8 +3,10 @@
 The gateway is a customer-deployed appliance that gives Devin sessions access
 to customer-internal systems (SCM, artifact registries, internal APIs) without
 per-resource network configuration on the customer side. It is an HTTP CONNECT
-proxy with a default-deny allowlist and an outbound-only TLS tunnel to a
-Devin-side edge. Customer destination TLS is
+proxy with a default-deny allowlist, reached either through an outbound-only
+TLS tunnel to a Devin-side edge (tunnel mode) or on a local listener that
+Devin dials directly, e.g. through a PrivateLink interface endpoint (direct
+mode). Customer destination TLS is
 never terminated by the gateway or the edge; payloads are opaque L4 streams.
 
 Binary subcommands:
@@ -17,15 +19,17 @@ gateway doctor --config config.yaml [--resolve host]...  # JSON diagnostic summa
 
 The container image is a static musl binary in a `FROM scratch` image
 (Dockerfile target `gateway`), running as UID 65532 with tini as
-PID 1. Mount the config at `/etc/devin-gateway/config.yaml` and the token
-file wherever `tunnel.auth_token_file` points.
+PID 1. Mount the config at `/etc/devin-gateway/config.yaml` and, in tunnel
+mode, the token file wherever `tunnel.auth_token_file` points.
 
 ## Deployment model
 
 The gateway runs on the customer side and opens an outbound TLS connection to a
 Devin-operated edge; the edge forwards Devin-side connections to the gateway
 over that tunnel, and the gateway dials the destination only if a route allows
-it. Routes are enforced on the gateway _and_ on the Devin side, so a
+it. In direct mode there is no tunnel or token: the gateway serves HTTP CONNECT
+on `listen`, and Devin dials that address, for example via an interface
+endpoint to an endpoint service in front of the gateway. Routes are enforced on the gateway _and_ on the Devin side, so a
 config-only change on one side cannot widen access. Per-session identity is
 not part of this layer; connection audit logs carry the destination, matched
 route, and client address. The enrollment token is never logged.

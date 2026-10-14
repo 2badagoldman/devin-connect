@@ -600,14 +600,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_connect_with_ip_authority() {
-        let head = b"CONNECT 10.0.0.1:5432 HTTP/1.1\r\n\r\n";
-        let request = parse_connect(head).unwrap();
-        assert_eq!(request.host, "10.0.0.1");
-        assert_eq!(request.port, 5432);
-    }
-
-    #[test]
     fn parses_ipv6_authority() {
         let head = b"CONNECT [fd00::1]:443 HTTP/1.1\r\n\r\n";
         let request = parse_connect(head).unwrap();

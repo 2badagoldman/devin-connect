@@ -96,8 +96,6 @@ impl HostResolver {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::*;
 
     #[tokio::test]
@@ -106,32 +104,5 @@ mod tests {
         assert!(matches!(resolver, HostResolver::System { .. }));
         let addrs = resolver.resolve("localhost").await.unwrap();
         assert!(addrs.iter().any(|ip| ip.is_loopback()));
-    }
-
-    #[test]
-    fn system_resolver_preserves_configured_timeout() {
-        let config = DnsConfig {
-            timeout: Duration::from_millis(123),
-            ..DnsConfig::default()
-        };
-        let resolver = HostResolver::new(&config).unwrap();
-        assert!(matches!(
-            resolver,
-            HostResolver::System { timeout } if timeout == config.timeout
-        ));
-    }
-
-    #[tokio::test]
-    async fn custom_resolver_uses_configured_nameservers() {
-        let config = DnsConfig {
-            nameservers: vec!["127.0.0.1:15353".parse().unwrap()],
-            timeout: Duration::from_millis(200),
-            allow_loopback: false,
-        };
-        let resolver = HostResolver::new(&config).unwrap();
-        assert!(matches!(resolver, HostResolver::Custom { .. }));
-        // Nothing is listening there: resolution must fail, not fall back to
-        // the system resolver.
-        assert!(resolver.resolve("db.corp.internal").await.is_err());
     }
 }

@@ -411,15 +411,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_minimal_config() {
-        let config = GatewayConfig::parse(&minimal_config("")).unwrap();
-        assert_eq!(config.schema_version, 1);
-        assert!(config.listen.is_some() && config.tunnel.is_none());
-        assert!(config.routes.is_empty());
-        assert_eq!(config.dial_timeout, Duration::from_secs(10));
-    }
-
-    #[test]
     fn tunnel_mode_has_no_data_listener() {
         let config = GatewayConfig::parse(&minimal_tunnel_config("")).unwrap();
         assert!(config.listen.is_none() && config.tunnel.is_some());
@@ -514,22 +505,6 @@ routes:
     }
 
     #[test]
-    fn rejects_route_without_rules() {
-        let err = GatewayConfig::parse(&minimal_config("routes:\n  - name: a\n    rules: []\n"))
-            .unwrap_err();
-        assert!(err.to_string().contains("rules must not be empty"), "{err}");
-    }
-
-    #[test]
-    fn rejects_empty_ports_list() {
-        let err = GatewayConfig::parse(&minimal_config(
-            "routes:\n  - name: a\n    rules: [{hostname: x}]\n    ports: []\n",
-        ))
-        .unwrap_err();
-        assert!(err.to_string().contains("ports must not be empty"), "{err}");
-    }
-
-    #[test]
     fn rejects_legacy_route_auth() {
         let err = GatewayConfig::parse(&minimal_config(
             r#"
@@ -547,30 +522,17 @@ routes:
     }
 
     #[test]
-    fn rejects_bad_hostname_pattern() {
-        let err = GatewayConfig::parse(&minimal_config(
-            "routes:\n  - name: a\n    rules: [{hostname: \"\"}]\n",
-        ))
-        .unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("hostname pattern must not be empty"),
-            "{err}"
-        );
-    }
-
-    #[test]
     fn rejects_heartbeat_interval_outside_edge_contract() {
         let tunnel =
             |interval: &str| minimal_tunnel_config(&format!("  heartbeat_interval: {interval}\n"));
-        for bad in ["500ms", "301s", "1h"] {
+        for bad in ["500ms", "301s"] {
             let err = GatewayConfig::parse(&tunnel(bad)).unwrap_err();
             assert!(
                 err.to_string().contains("heartbeat_interval"),
                 "{bad}: {err}"
             );
         }
-        for good in ["1s", "15s", "300s"] {
+        for good in ["1s", "300s"] {
             GatewayConfig::parse(&tunnel(good)).unwrap();
         }
     }

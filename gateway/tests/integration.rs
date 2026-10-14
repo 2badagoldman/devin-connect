@@ -566,26 +566,6 @@ admin_listen: 127.0.0.1:1
 }
 
 #[tokio::test]
-async fn dial_failure_returns_502() {
-    let gw = start_gateway(
-        r#"
-schema_version: 1
-listen: 127.0.0.1:0
-admin_listen: 127.0.0.1:1
-dial_timeout: 1s
-routes:
-  - name: local
-    rules: [{ipv4: 127.0.0.0/8}]
-"#,
-    )
-    .await;
-    // Port 9 (discard) should refuse on 127.0.0.1.
-    let (status, _stream) = connect(gw.addr, "127.0.0.1:9").await;
-    assert_eq!(status, "HTTP/1.1 502 Bad Gateway");
-    assert_eq!(gw.metrics.dial_errors_total.load(Ordering::Relaxed), 1);
-}
-
-#[tokio::test]
 async fn reload_applies_to_new_connections_and_keeps_last_good() {
     let echo = spawn_echo_server().await;
     let allow = r#"

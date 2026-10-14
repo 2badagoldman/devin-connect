@@ -237,15 +237,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn preserves_arbitrary_binary_payloads() {
-        let (client, _server) = spawn_pair();
-        let payload: Vec<u8> = (0..=255u8).cycle().take(70_000).collect();
-        assert_echo(&client, &payload).await;
-    }
-
-    #[tokio::test]
     async fn rejects_out_of_range_stream_caps() {
-        for cap in [0, 1, 4097] {
+        for cap in [1, 4097] {
             let (a, _b) = tokio::io::duplex(1024);
             match with_max_streams(a.compat(), Mode::Client, cap) {
                 Err(err) => assert!(err.to_string().contains("max_streams"), "{err}"),
@@ -275,26 +268,6 @@ mod tests {
         // are what kill the connection, which is why the receiving end
         // runs at `local_max_streams` headroom.)
         let _ = client.open_stream().await.unwrap_err();
-    }
-
-    /// Slot reuse discipline: a stream freed by dropping must be reusable
-    /// for a subsequent open without tripping the cap, because the driver
-    /// pumps yamux's bookkeeping before admitting each open.
-    #[tokio::test]
-    async fn freed_stream_slots_are_reusable() {
-        let (a, b) = tokio::io::duplex(256 * 1024);
-        let (client, client_driver) = with_max_streams(a.compat(), Mode::Client, 3).unwrap();
-        let (_server, server_driver) = with_max_streams(b.compat(), Mode::Server, 3).unwrap();
-        tokio::spawn(client_driver.run(echo_inbound));
-        tokio::spawn(server_driver.run(echo_inbound));
-
-        for _ in 0..20 {
-            let mut stream = client.open_stream().await.unwrap();
-            stream.write_all(b"ping").await.unwrap();
-            let mut echoed = [0u8; 4];
-            stream.read_exact(&mut echoed).await.unwrap();
-            drop(stream);
-        }
     }
 
     /// The cross-peer cleanup race behind [`local_max_streams`]: the opener

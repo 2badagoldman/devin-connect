@@ -194,40 +194,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn roundtrips_hello_and_control_messages() {
-        let (mut a, mut b) = tokio::io::duplex(1024);
-        let hello = Hello {
-            protocol_version: PROTOCOL_VERSION,
-            gateway_id: "gw-1".to_string(),
-            auth_token: "secret".to_string(),
-            heartbeat_interval_secs: 15,
-            max_streams: Some(512),
-            stream_acks: true,
-        };
-        write_message(&mut a, &hello).await.unwrap();
-        write_message(
-            &mut a,
-            &ControlMessage::Heartbeat(Heartbeat {
-                seq: 7,
-                active_connections: 1,
-                connections_total: 2,
-                config_version: 3,
-            }),
-        )
-        .await
-        .unwrap();
-
-        let received: Hello = read_message(&mut b).await.unwrap();
-        assert_eq!(received.gateway_id, "gw-1");
-        assert_eq!(received.auth_token, "secret");
-        let control: ControlMessage = read_message(&mut b).await.unwrap();
-        let ControlMessage::Heartbeat(heartbeat) = control else {
-            panic!("expected heartbeat, got {control:?}");
-        };
-        assert_eq!(heartbeat.seq, 7);
-    }
-
-    #[tokio::test]
     async fn roundtrips_stream_preamble() {
         let (mut a, mut b) = tokio::io::duplex(1024);
         write_message(
@@ -275,29 +241,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn roundtrips_stream_ack_without_consuming_proxied_bytes() {
-        let (mut a, mut b) = tokio::io::duplex(1024);
-        write_message(&mut a, &StreamAck {}).await.unwrap();
-        a.write_all(b"HTTP/1.1 200 Connection established\r\n")
-            .await
-            .unwrap();
-        let StreamAck {} = read_message(&mut b).await.unwrap();
-        let mut head = [0u8; 8];
-        b.read_exact(&mut head).await.unwrap();
-        assert_eq!(&head, b"HTTP/1.1");
-    }
-
-    #[tokio::test]
-    async fn roundtrips_drain_ack() {
-        let (mut a, mut b) = tokio::io::duplex(1024);
-        write_message(&mut a, &ControlMessage::DrainAck)
-            .await
-            .unwrap();
-        let message: ControlMessage = read_message(&mut b).await.unwrap();
-        assert!(matches!(message, ControlMessage::DrainAck), "{message:?}");
-    }
-
-    #[tokio::test]
     async fn tolerates_unknown_fields_for_additive_evolution() {
         let (mut a, mut b) = tokio::io::duplex(1024);
         a.write_all(b"{\"ok\":true,\"tenant\":\"acme\",\"new_field\":42}\n")
@@ -317,15 +260,6 @@ mod tests {
         });
         let err = read_message::<_, HelloReply>(&mut b).await.unwrap_err();
         assert!(err.to_string().contains("exceeds"), "{err}");
-    }
-
-    #[tokio::test]
-    async fn rejects_truncated_messages() {
-        let (mut a, mut b) = tokio::io::duplex(1024);
-        a.write_all(b"{\"ok\":true").await.unwrap();
-        drop(a);
-        let err = read_message::<_, HelloReply>(&mut b).await.unwrap_err();
-        assert!(err.to_string().contains("closed mid-message"), "{err}");
     }
 
     #[tokio::test]

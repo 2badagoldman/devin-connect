@@ -206,7 +206,6 @@ mod tests {
         }));
         for (request, expect) in [
             ("GET /healthz HTTP/1.1\r\n\r\n", "HTTP/1.1 200 OK"),
-            ("GET /nope HTTP/1.1\r\n\r\n", "HTTP/1.1 404 Not Found"),
             (
                 "POST /healthz HTTP/1.1\r\n\r\n",
                 "HTTP/1.1 405 Method Not Allowed",

@@ -11,7 +11,7 @@ cidr = { version = "0.3.1", features = ["serde"] }
 color-eyre = { workspace = true }
 common = { path = "../common" }
 fastrand = "2.3.0"
-hickory-resolver = "0.26.1"
+hickory-resolver = "0.26.2"
 httparse = { workspace = true }
 humantime-serde = { workspace = true }
 rustls = { workspace = true }

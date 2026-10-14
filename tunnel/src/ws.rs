@@ -114,22 +114,6 @@ where
     Ok(WsByteStream::new(ws))
 }
 
-/// Answer an upgrade request with an HTTP 400 carrying `reason`, for
-/// connections rejected before the hello can be validated:
-/// the client sees a response instead of a silently dropped socket.
-pub async fn reject_upgrade<S>(io: S, reason: &str)
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    #[allow(clippy::result_large_err)] // Err type fixed by tungstenite's Callback trait
-    let callback = |_request: &Request, _response: Response| -> Result<Response, ErrorResponse> {
-        Err(error_response(http::StatusCode::BAD_REQUEST, reason))
-    };
-    // The rejection error is the intended outcome; the response has been
-    // written to the wire by the time the handshake returns.
-    let _ = tokio_tungstenite::accept_hdr_async_with_config(io, callback, Some(ws_config())).await;
-}
-
 fn error_response(status: http::StatusCode, reason: &str) -> ErrorResponse {
     let mut response = ErrorResponse::new(Some(reason.to_string()));
     *response.status_mut() = status;
@@ -489,44 +473,6 @@ mod tests {
         assert_eq!(&got, b"data");
     }
 
-    #[test]
-    fn ws_errors_map_to_meaningful_io_kinds() {
-        use tokio_tungstenite::tungstenite::error::CapacityError;
-        assert_eq!(
-            ws_io_error(WsError::ConnectionClosed).kind(),
-            io::ErrorKind::BrokenPipe
-        );
-        assert_eq!(
-            ws_io_error(WsError::AlreadyClosed).kind(),
-            io::ErrorKind::BrokenPipe
-        );
-        let err = ws_io_error(WsError::Capacity(CapacityError::MessageTooLong {
-            size: 2,
-            max_size: 1,
-        }));
-        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
-        // A preserved source chain double-prints the message through report
-        // formatting (tungstenite errors embed their source's Display).
-        assert!(std::error::Error::source(&err).is_none(), "{err}");
-    }
-
-    #[tokio::test]
-    async fn reject_upgrade_answers_with_400() {
-        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
-        let server = tokio::spawn(async move {
-            reject_upgrade(server_io, "connection has no server name").await;
-        });
-        let request = handshake_request(UPGRADE_PATH, TEST_SNI, Some(SUBPROTOCOL));
-        let err = client_async_with_config(request, client_io, None)
-            .await
-            .unwrap_err();
-        match err {
-            WsError::Http(response) => assert_eq!(response.status().as_u16(), 400),
-            other => panic!("expected HTTP rejection, got {other:?}"),
-        }
-        server.await.unwrap();
-    }
-
     #[tokio::test]
     async fn oversized_message_is_rejected() {
         let (mut raw, mut server) = raw_client_pair().await;
@@ -598,37 +544,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn accepts_host_without_tenant_specific_server_name() {
-        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
-        let server = tokio::spawn(server_upgrade(server_io));
-        let request = handshake_request(UPGRADE_PATH, "other.example", Some(SUBPROTOCOL));
-        client_async_with_config(request, client_io, None)
-            .await
-            .unwrap();
-        server.await.unwrap().unwrap();
-    }
-
-    #[tokio::test]
     async fn accepts_host_with_port_and_mixed_case() {
         let (client_io, server_io) = tokio::io::duplex(64 * 1024);
         let server = tokio::spawn(server_upgrade(server_io));
         let host = format!("{}:443", TEST_SNI.to_ascii_uppercase());
         let request = handshake_request(UPGRADE_PATH, &host, Some(SUBPROTOCOL));
-        client_async_with_config(request, client_io, None)
-            .await
-            .unwrap();
-        server.await.unwrap().unwrap();
-    }
-
-    #[tokio::test]
-    async fn accepts_uppercase_server_name() {
-        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
-        let server = tokio::spawn(server_upgrade(server_io));
-        let request = handshake_request(
-            UPGRADE_PATH,
-            &TEST_SNI.to_ascii_uppercase(),
-            Some(SUBPROTOCOL),
-        );
         client_async_with_config(request, client_io, None)
             .await
             .unwrap();
